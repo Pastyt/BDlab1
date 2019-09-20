@@ -1,8 +1,8 @@
+//Data is not completely overwritten if received through fread NEED FIX
+#define _CRT_SECURE_NO_DEPRECATE
 #include <iostream>
-#include <fstream>
+#define max_block 5
 using namespace std;
-
-int block_size = 5;
 
 struct student {
 	char name[20];
@@ -14,93 +14,271 @@ struct student {
 };
 
 struct block {
-	student stud[5];
-	int block_id;
+	student stud[max_block];
 };
-
-
-bool search(int id) {
-	int ser = 0;
-	/*int check=data.block_id,ser=0;
-	for (int i=0; i<block_size;i++){
-		if (id==data.stud[i].id) ser++;
-	} */
-	FILE* file;
-	file = fopen("bd.txt", "r+");
-	do {
-		/*if (data.block_id==check)
-		fseek(file, sizeof(struct block), SEEK_CUR);
-		*/
-		fread(&data, sizeof(struct block), 1, file);
-
-		for (int i = 0; i < block_size; i++) {
-			if (id == data.stud[i].id) ser++;
-		}
-	} while (!feof(file));
-	if (ser > 1) return 1;
-	return 0;
-}
-void showmydata()
+void showmydata(FILE* base_data, int cur_work)
 {
-	FILE* file;
-	file = fopen("bd.txt", "r+");
-	int prev = -1;
-	while (!feof(file)) {
-		fread(&data, sizeof(struct block), 1, file);
-		if (prev == data.block_id) break;
-		cout << "Block numb: " << data.block_id << endl;
-		for (int i = 0; i < block_size; i++) {
-			cout << data.stud[i].name << " " << data.stud[i].sur << " " << data.stud[i].twoname
-				<< " " << data.stud[i].id << " " << data.stud[i].group << endl;
-			prev = data.block_id;
+	block data;
+	fseek(base_data, 0, SEEK_SET);
+	while (!feof(base_data)) {
+		cout << "------------------------------------------------"<< endl;
+		memset(&data, '\0', sizeof(block));
+		fread(&data, sizeof(struct block), 1, base_data);
+		for (int i = 0; i < max_block; i++)
+		{
+			if (data.stud[i].del == true) {
+				cout << data.stud[i].name << " " << data.stud[i].sur << " " << data.stud[i].twoname;
+				cout << " " << data.stud[i].id << " " << data.stud[i].group << endl;
+			}
 		}
 	}
-	cout << "End" << endl;
 }
-int main() {
-	FILE* file;
-	file = fopen("bd.txt", "r+");
-	data.block_id = 0;
-	student c;
-	int k = 0;
+int search_id(int cur_work, int k, int id, block data,FILE *base_data)
+{
+	for (int i = 0; i < max_block; i++)
+		if (data.stud[i].id == id && i != k && data.stud[i].del) return i;
+	fseek(base_data, 0, SEEK_SET);
+	int now_work=-1;
+	while (!feof(base_data)) {
+		fread(&data, sizeof(struct block), 1, base_data);
+		now_work++;
+		for (int i = 0; i < max_block; i++)
+			if (data.stud[i].id == id && 
+				i != k && now_work!=cur_work && data.stud[i].del) return i;
+	}
+	return -1;
+}
+int search_student(int& cur_work,int id, block& data, FILE* base_data)
+{
+	for (int i = 0; i < max_block; i++)
+		if (data.stud[i].id == id) return i;
+	fseek(base_data, 0, SEEK_SET);
+	memset(&data, '\0', sizeof(block));
+	fread(&data, sizeof(struct block), 1, base_data);
+	int now_work = 0;
+	while (data.stud[0].del != false) {
+		if (now_work == cur_work) continue;
+		for (int i = 0; i < max_block; i++)
+			if (data.stud[i].id == id) {
+				cur_work = now_work;
+				return i;
+			}
+		fread(&data, sizeof(struct block), 1, base_data);
+		now_work++;
+	}
+	return -1;
+}
+int main() 
+{
+	block data;//cleardata;
+	int current_work = 0,casework,k=0,casek;
+	FILE* base_data;
+	base_data = fopen("base_data.bin", "r+");
+	memset(&data, '\0', sizeof(block));
+	fread(&data, sizeof(struct block), 1, base_data);
+	while (data.stud[0].del != false) {
+		current_work++;
+		memset(&data, '\0', sizeof(block));
+		fread(&data, sizeof(struct block), 1, base_data);
+	}
+	if(current_work!=0) current_work--;
+	fseek(base_data, sizeof(struct block) * current_work, SEEK_SET);
+	fread(&data, sizeof(struct block), 1, base_data);
+	while (data.stud[k].del && k!=4) k++;
+	if (k == 4) {
+		current_work++;
+		memset(&data, '\0', sizeof(block));
+		k = 0;
+	}
 	cout << "1. New data" << endl;
 	cout << "2. Search data" << endl;
 	cout << "3. Show all" << endl;
 	cout << "4. Change data" << endl;
 	cout << "5. Delete data" << endl;
-	cout << "6. Delete trash" << endl;
+	cout << "6. Clear database trash" << endl;
+	cout << "7. Delete database" << endl;
 	cout << "0. Exit" << endl;
 	int meme = 1;
-	bool test;
+	casek = k;
+	casework = current_work;
+	cout << "current work = " << current_work<< endl;
+	cout << "k = " << k << endl;
 	while (meme != 0) {
-
 		cin >> meme;
-
 		switch (meme) {
 		case 1:
+			if (casework != current_work) {
+				current_work = casework;
+				casek = k;
+				fseek(base_data, sizeof(struct block) * casework, SEEK_SET);
+				fread(&data, sizeof(struct block), 1, base_data);
+				cout << "Write to mem" << endl;
+			}
 			cout << "Enter name, surname, otchestvo, id, group" << endl;
-			data.stud[k].del = 0;
-			cin >> data.stud[k].name >> data.stud[k].sur >> data.stud[k].twoname;
-			cin >> data.stud[k].id >> data.stud[k].group;
+			cin >> data.stud[casek].name >> data.stud[casek].sur >> data.stud[casek].twoname;
+			cin >> data.stud[casek].id >> data.stud[casek].group;
 
-			test = search(data.stud[k].id);
-			if (test) {
-				cout << "Data not unic" << endl;
+			if (search_id(casework, casek, data.stud[casek].id, data, base_data)!=-1) {
+				cout << "Data are repeated" << endl;
 				break;
 			}
-			k++;
-			if (k == block_size) {
-				k = 0;
-				fwrite(&data, sizeof(struct block), 1, file);
-				data.block_id++;
-			}
+			data.stud[casek].del = true;
+			casek++;
+				fseek(base_data, sizeof(struct block)*casework, SEEK_SET);
+				fwrite(&data, sizeof(struct block), 1, base_data);
+				cout << "Write to mem"<< endl;
+				if (casek == 5) {
+					casework++;
+					memset(&data, '\0', sizeof(block));
+					casek = 0;
+				}
 			cout << "End" << endl;
+			current_work = casework;
+			k = casek;
 			break;
+		case 2:
+			cout << "Type ID" << endl;
+			cin >> meme;
+			k=search_student(current_work, meme, data, base_data);
+			if (k == -1) {
+				cout << "Data not found" << endl;
+				break;
+			}
+			cout << data.stud[k].name << " " << data.stud[k].sur << " " << data.stud[k].twoname;
+			cout << " " << data.stud[k].id << " " << data.stud[k].group << endl;
+		break;
 
 		case 3:
-			showmydata();
+			showmydata(base_data,current_work);
 			break;
+		case 4: //Change data
+			cout << "Type ID" << endl;
+			cin >> meme;
+			k = search_student(current_work, meme, data, base_data);
+			if (k == -1) {
+				cout << "Data not found" << endl;
+				break;
+			}
+			cout << "Change data" << endl;
+			cin >> data.stud[k].name >> data.stud[k].sur >> data.stud[k].twoname;
+			cin >> data.stud[k].id >> data.stud[k].group;
+			/*if (search_id(casework, k, data.stud[k].id, data, base_data) != -1) {
+				cout << "Data are repeated" << endl;
+				break;
+			}*/
+			fseek(base_data, sizeof(block) * current_work, SEEK_SET);
+			fwrite(&data, sizeof(struct block), 1, base_data);
+			break;
+		case 5: //DELETE
+			cout << "Type ID" << endl;
+			cin >> meme;
+			k = search_student(current_work, meme, data, base_data);
+			if (k == -1) {
+				cout << "Data not found" << endl;
+				break;
+			}
+			data.stud[k].del = false;
+			fseek(base_data, sizeof(block)* current_work, SEEK_SET);
+			fwrite(&data, sizeof(struct block), 1, base_data);
+			break;
+		case 6:
+			casek--;
+			current_work = 0;
+			block casedata;
+			bool booldata, boolcase;
+			memset(&data, '\0', sizeof(block));
+			memset(&casedata, '\0', sizeof(block));
+			fseek(base_data, sizeof(block)* casework, SEEK_SET);
+			fread(&casedata, sizeof(struct block), 1, base_data);
+			fseek(base_data, 0, SEEK_SET);
+			fread(&data, sizeof(struct block), 1, base_data);
+			while (true) {
+
+			booldata = false; boolcase = false;
+				while (data.stud[0].name[0]!='\0') {
+					for (k = 0; k < 5; k++)
+					{
+						if (data.stud[k].del == false) {
+							booldata = true;
+							goto exit1;
+						}
+					}
+					current_work++;
+					memset(&data, '\0', sizeof(block));
+					fseek(base_data, sizeof(block)*current_work, SEEK_SET);
+					fread(&data, sizeof(struct block), 1, base_data);
+				}
+			exit1:
+				while (true)
+				{
+					for (casek = 4;casek > -1; casek--)
+					{
+						if (casedata.stud[casek].del == true) {
+							boolcase = true;
+							goto exit2;
+						}
+					}
+					casework--;
+					if (casework == -1) break;
+					memset(&casedata, '\0', sizeof(block));
+					fseek(base_data, sizeof(block)* casework, SEEK_SET);
+					fread(&casedata, sizeof(struct block), 1, base_data);
+				}
+			exit2:
+				if (booldata && boolcase && current_work<=casework) {
+					if (current_work == casework)
+						if (k > casek) break;
+					
+					cout << "Move block " << casework << " num " << casek << endl;
+					cout << "To " << current_work << " num " << k << endl;
+					data.stud[k] = casedata.stud[casek];
+					casedata.stud[casek].del = false;
+					fseek(base_data, sizeof(block)* current_work, SEEK_SET);
+					fwrite(&data, sizeof(struct block), 1, base_data);
+					fseek(base_data, sizeof(block)* casework, SEEK_SET);
+					fwrite(&casedata, sizeof(struct block), 1, base_data);
+				}
+				else break;
+			}
+
+			current_work = 0; k = 0;
+			fseek(base_data, 0, SEEK_SET);
+			memset(&data, '\0', sizeof(block));
+			fread(&data, sizeof(struct block), 1, base_data);
+			while (data.stud[0].del != false) {
+				current_work++;
+				memset(&data, '\0', sizeof(block));
+				fread(&data, sizeof(struct block), 1, base_data);
+			}
+			memset(&data, '\0', sizeof(block));
+			fseek(base_data, sizeof(block)* current_work, SEEK_SET);
+			fwrite(&data, sizeof(struct block), 1, base_data);
+			if (current_work != 0) current_work--;
+			fseek(base_data, sizeof(struct block)* current_work, SEEK_SET);
+			fread(&data, sizeof(struct block), 1, base_data);
+			while (data.stud[k].del&& k != 4) k++;
+			
+			if (k == 4) {
+				current_work++;
+				memset(&data, '\0', sizeof(block));
+				k = 0;
+			}
+			casek=k;
+			casework = current_work;
+			cout << "k = " << k << endl;
+			cout << "block = " << casework << endl;
+			break;
+		case 7:
+			base_data = fopen("base_data.bin", "w+");
+			current_work = 0;
+			k = 0;
+			casework = 0;
+			casek = 0;
+			break;
+
 		}
-		fclose(file);
+		
 	}
+	fclose(base_data);
+	return 0;
 }
