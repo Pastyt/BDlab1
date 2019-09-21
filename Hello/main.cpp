@@ -228,7 +228,6 @@ int main()
 				if (booldata && boolcase && current_work<=casework) {
 					if (current_work == casework)
 						if (k > casek) break;
-					
 					cout << "Move block " << casework << " num " << casek << endl;
 					cout << "To " << current_work << " num " << k << endl;
 					data.stud[k] = casedata.stud[casek];
@@ -237,6 +236,26 @@ int main()
 					fwrite(&data, sizeof(struct block), 1, base_data);
 					fseek(base_data, sizeof(block)* casework, SEEK_SET);
 					fwrite(&casedata, sizeof(struct block), 1, base_data);
+					if (casek == 0) {
+						int cur_page = casework;
+						FILE* temp_file;
+						temp_file = fopen("temp_data.bin", "w+");
+						block temp_data;
+						fseek(base_data, 0, SEEK_SET);
+						for (int i = 0; i < cur_page; i++)
+						{
+							memset(&data, '\0', sizeof(block));
+							fread(&temp_data, sizeof(struct block), 1, base_data);
+							fwrite(&temp_data, sizeof(struct block), 1, temp_file);
+						}
+						char newname[] = "temp_data.bin";
+						char name[] = "base_data.bin";
+						fclose(base_data);
+						fclose(temp_file);
+							remove(name);
+							rename(newname, name);
+							base_data = fopen("base_data.bin", "r+" );
+					}
 				}
 				else break;
 			}
@@ -250,9 +269,9 @@ int main()
 				memset(&data, '\0', sizeof(block));
 				fread(&data, sizeof(struct block), 1, base_data);
 			}
-			memset(&data, '\0', sizeof(block));
+			/*memset(&data, '\0', sizeof(block));
 			fseek(base_data, sizeof(block)* current_work, SEEK_SET);
-			fwrite(&data, sizeof(struct block), 1, base_data);
+			fwrite(&data, sizeof(struct block), 1, base_data); */
 			if (current_work != 0) current_work--;
 			fseek(base_data, sizeof(struct block)* current_work, SEEK_SET);
 			fread(&data, sizeof(struct block), 1, base_data);
